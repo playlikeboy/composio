@@ -185,6 +185,54 @@ describe('TerminalUI', () => {
     );
   });
 
+  describe('note keeps a URL that does not fit as one copyable line', () => {
+    const LONG_URL = `https://connect.composio.dev/link/lk_${'a'.repeat(60)}`;
+
+    const noteAt = (columns: number, message: string, title?: string) => {
+      const stdout = makeSink(true);
+      const stderr = Object.assign(makeSink(true), { columns });
+      const ui = makeTerminalUI({ stdin: { isTTY: true }, stdout, stderr });
+      return ui.note(message, title).pipe(Effect.map(() => stderr.chunks.join('')));
+    };
+
+    it.effect('prints a URL wider than the box on its own unboxed line', () =>
+      Effect.gen(function* () {
+        const output = yield* noteAt(40, LONG_URL, 'Redirect URL');
+
+        expect(output).toContain('Redirect URL');
+        expect(output.split('\n')).toContain(LONG_URL);
+        expect(output).not.toContain(p.S_CORNER_TOP_RIGHT);
+      })
+    );
+
+    it.effect('omits the title line when the note has no title', () =>
+      Effect.gen(function* () {
+        const output = yield* noteAt(40, LONG_URL);
+
+        expect(output).toBe(`${LONG_URL}\n`);
+      })
+    );
+
+    it.effect('still boxes a URL that fits', () =>
+      Effect.gen(function* () {
+        const output = yield* noteAt(200, LONG_URL, 'Redirect URL');
+
+        expect(output).toContain(`${p.S_BAR}  ${LONG_URL}`);
+        expect(output).toContain(p.S_CORNER_TOP_RIGHT);
+      })
+    );
+
+    it.effect('still wraps text with spaces inside the box', () =>
+      Effect.gen(function* () {
+        const text = 'word '.repeat(20).trim();
+        const output = yield* noteAt(40, text, 'Existing accounts');
+
+        expect(output).toContain(p.S_CORNER_TOP_RIGHT);
+        expect(output.split('\n')).not.toContain(text);
+      })
+    );
+  });
+
   describe('clampSpinnerMessage keeps live spinner messages on one terminal row', () => {
     it('leaves a message that fits untouched', () => {
       expect(clampSpinnerMessage(80, 'Checking for updates')).toBe('Checking for updates');

@@ -245,6 +245,15 @@ export const clampSpinnerMessage = (columns: number, message: string): string =>
   return `${clamped}…`;
 };
 
+// Clack's note hard-wraps its body at the terminal width minus its frame
+// (`│  ` plus `  │`). A message with no whitespace, such as a URL, has no
+// break point, so the wrap splits the token and the frame characters end up
+// inside any selection of it. Such a message is printed as one raw line
+// instead, which the terminal soft-wraps and keeps copyable as a single value.
+const NOTE_FRAME_WIDTH = 6;
+const needsUnboxedLine = (message: string, columns: number) =>
+  message.length > 0 && !/\s/.test(message) && stringWidth(message) > columns - NOTE_FRAME_WIDTH;
+
 type StartedClackSpinner = {
   readonly raw: p.SpinnerResult;
   readonly updateMessage: (message: string) => void;
@@ -341,7 +350,16 @@ export const makeTerminalUI = (streams: TerminalUIStreams): TerminalUI => {
     },
 
     note: (message, title) =>
-      decorate(() => p.note(message, title ?? '', { format: line => line, output: stderr })),
+      decorate(() => {
+        if (needsUnboxedLine(message, getColumns(stderr))) {
+          if (title) {
+            p.log.step(title, { output: stderr });
+          }
+          stderr.write(`${message}\n`);
+          return;
+        }
+        p.note(message, title ?? '', { format: line => line, output: stderr });
+      }),
 
     select: ((
       message: string,

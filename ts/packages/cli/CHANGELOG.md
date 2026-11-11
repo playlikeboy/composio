@@ -4,6 +4,10 @@
 
 ### Patch Changes
 
+- In a terminal too narrow for its box, the redirect URL of `composio link`,
+  the login URL of `composio login` and the dashboard URL print on one unboxed
+  line, so they can be selected, copied or opened as a single value.
+
 - Update @composio/client to 2.1.17 to include the latest API changes.
 
 - Update @composio/client to 2.1.16 to include the latest API changes.
